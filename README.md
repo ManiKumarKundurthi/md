@@ -83,5 +83,3 @@ To update or re-host this tool yourself under your primary GitHub Pages path:
 ## License
 
 This project is open-source and free to use. Feel free to modify, expand, or self-host as needed!
-
-```
