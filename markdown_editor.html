@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-theme="blue">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    
+    <!-- Tailwind CSS for styling, configured for a custom Material 3 Dark Theme -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // Material 3 Dark Blue Theme Palette approximations (darkened)
+                        m3: {
+                            sys: {
+                                color: {
+                                    background: '#000000',
+                                    onBackground: '#d4dbeb',
+                                    surface: '#020408',
+                                    onSurface: '#d4dbeb',
+                                    surfaceVariant: '#141a28',
+                                    onSurfaceVariant: '#b3bcd3',
+                                    primary: '#7fa8e8',
+                                    onPrimary: '#06213f',
+                                    primaryContainer: '#153868',
+                                    onPrimaryContainer: '#cfdffb',
+                                    secondaryContainer: '#131d33',
+                                    onSecondaryContainer: '#ccd7ee',
+                                    outline: '#33405c',
+                                    outlineVariant: '#0f1521',
+                                    surfaceContainerHighest: '#141b2c',
+                                    surfaceContainerHigh: '#0f1524',
+                                    surfaceContainer: '#0b101c',
+                                    surfaceContainerLow: '#070b14',
+                                    surfaceContainerLowest: '#03060c',
+                                }
+                            }
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Roboto', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+                    },
+                    boxShadow: {
+                        'elevation-1': '0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15)',
+                        'elevation-2': '0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts: Roboto & Material Symbols Rounded -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- DOMPurify for sanitizing HTML output -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+    
+    <!-- Highlight.js for code block syntax highlighting in preview.
+         Two color themes are loaded (dark + light); JS enables/disables the
+         correct one to match whichever of the three app themes is active,
+         since a single hardcoded hljs theme would have poor contrast when the
+         app switches to the opposite type of background. -->
+    <link rel="stylesheet" id="hljs-theme-dark" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" id="hljs-theme-light" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css" disabled>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- KaTeX for LaTeX support (Replaced MathJax for better stability & performance) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <style>
+        /* Theme tokens as CSS custom properties, scoped per data-theme attribute
+           on <html>. IMPORTANT: the Tailwind CDN build (cdn.tailwindcss.com) only
+           scans HTML for utility classes — it does NOT process arbitrary CSS
+           written in a <style> tag, so theme('colors...') calls would be invalid
+           CSS and silently ignored by the browser. CSS variables are resolved by
+           the browser directly, so they work regardless of Tailwind's CDN
+           limitations, and let us swap an entire palette by changing one
+           attribute rather than rewriting every rule. */
+
+        /* Theme 1: Dark Blue (default) */
+        html[data-theme="blue"] {
+            --m3-background: #000000;
+            --m3-on-background: #d4dbeb;
+            --m3-surface: #020408;
+            --m3-on-surface: #d4dbeb;
+            --m3-surface-variant: #141a28;
+            --m3-on-surface-variant: #b3bcd3;
+            --m3-primary: #7fa8e8;
+            --m3-on-primary: #06213f;
+            --m3-primary-container: #153868;
+            --m3-on-primary-container: #cfdffb;
+            --m3-secondary-container: #131d33;
+            --m3-on-secondary-container: #ccd7ee;
+            --m3-outline: #33405c;
+            --m3-outline-variant: #0f1521;
+            --m3-surface-container-highest: #141b2c;
+            --m3-surface-container-high: #0f1524;
+            --m3-surface-container: #0b101c;
+            --m3-surface-container-low: #070b14;
+            --m3-surface-container-lowest: #03060c;
+            --m3-elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+            --m3-elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Theme 2: Pure Black — true black surfaces, neutral (non-blue-tinted) grays */
+        html[data-theme="black"] {
+            --m3-background: #000000;
+            --m3-on-background: #e8e8e8;
+            --m3-surface: #000000;
+            --m3-on-surface: #e8e8e8;
+            --m3-surface-variant: #1e1e1e;
+            --m3-on-surface-variant: #b8b8b8;
+            --m3-primary: #9e9e9e;
+            --m3-on-primary: #121212;
+            --m3-primary-container: #2e2e2e;
+            --m3-on-primary-container: #f0f0f0;
+            --m3-secondary-container: #1a1a1a;
+            --m3-on-secondary-container: #e0e0e0;
+            --m3-outline: #454545;
+            --m3-outline-variant: #161616;
+            --m3-surface-container-highest: #1e1e1e;
+            --m3-surface-container-high: #171717;
+            --m3-surface-container: #101010;
+            --m3-surface-container-low: #0a0a0a;
+            --m3-surface-container-lowest: #000000;
+            --m3-elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.4), 0px 1px 3px 1px rgba(0, 0, 0, 0.2);
+            --m3-elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.4), 0px 2px 6px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Theme 3: Pure White — true white surfaces, dark neutral text */
+        html[data-theme="white"] {
+            --m3-background: #ffffff;
+            --m3-on-background: #1a1a1a;
+            --m3-surface: #ffffff;
+            --m3-on-surface: #1a1a1a;
+            --m3-surface-variant: #e4e4e4;
+            --m3-on-surface-variant: #4b4b4b;
+            --m3-primary: #2f5fd1;
+            --m3-on-primary: #ffffff;
+            --m3-primary-container: #dbe6ff;
+            --m3-on-primary-container: #0d2c6b;
+            --m3-secondary-container: #eaeaea;
+            --m3-on-secondary-container: #2a2a2a;
+            --m3-outline: #b8b8b8;
+            --m3-outline-variant: #e0e0e0;
+            --m3-surface-container-highest: #e9e9e9;
+            --m3-surface-container-high: #eeeeee;
+            --m3-surface-container: #f3f3f3;
+            --m3-surface-container-low: #f8f8f8;
+            --m3-surface-container-lowest: #ffffff;
+            --m3-elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.08), 0px 1px 3px 1px rgba(0, 0, 0, 0.06);
+            --m3-elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.1), 0px 2px 6px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Base Styles */
+        body {
+            background-color: var(--m3-background);
+            color: var(--m3-on-background);
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        body, body * {
+            transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+        }
+
+        /* Material Symbols Setup */
+        .material-symbols-rounded {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24;
+            font-size: 20px;
+        }
+
+        .app-icon-color { color: var(--m3-primary); }
+        .toggle-pill { background-color: var(--m3-surface-container-highest); }
+
+        /* Custom Scrollbar for a polished look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--m3-surface-container-lowest);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--m3-outline-variant);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--m3-outline);
+        }
+
+        /* Material 3 App Bar */
+        .top-app-bar {
+            background-color: var(--m3-surface-container);
+            color: var(--m3-on-surface);
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: var(--m3-elevation-2);
+            z-index: 10;
+        }
+
+        /* Material 3 Icon Button */
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--m3-on-surface-variant);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .icon-btn:hover {
+            background-color: color-mix(in srgb, currentColor 12%, transparent);
+        }
+        .icon-btn.active {
+            background-color: var(--m3-primary);
+            color: var(--m3-on-primary);
+        }
+
+        /* Theme Toggle Button - sits apart from the download button group with its
+           own outline so it reads as a distinct control, not part of that group. */
+        .theme-toggle-btn {
+            margin-left: 16px;
+            border: 1px solid var(--m3-outline);
+        }
+
+        /* Material 3 Filled Button */
+        .filled-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 40px;
+            padding: 0 24px;
+            border-radius: 20px;
+            border: none;
+            background-color: var(--m3-primary);
+            color: var(--m3-on-primary);
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        .filled-btn:hover {
+            background-color: var(--m3-primary-container);
+            box-shadow: var(--m3-elevation-1);
+        }
+        
+        /* Layout Setup */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            background-color: var(--m3-background);
+            padding: 8px;
+            gap: 8px;
+        }
+
+        /* Panel Styling (Editor / Viewer) */
+        .panel {
+            background-color: var(--m3-surface-container-low);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: flex 0.3s ease, min-width 0.3s ease, opacity 0.2s ease;
+            flex: 1;
+            min-width: 0; /* Important for flex flex-shrinking below content size */
+            border: 1px solid var(--m3-outline);
+        }
+        
+        /* State classes for collapsing */
+        .panel.collapsed {
+            flex: 0 0 0px;
+            min-width: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+        
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--m3-outline-variant);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--m3-surface-container);
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--m3-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Editor Specific */
+        .editor-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .editor-gutter {
+            flex-shrink: 0;
+            padding: 16px 12px 16px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--m3-on-surface-variant);
+            opacity: 0.55;
+            text-align: right;
+            user-select: none;
+            background-color: var(--m3-surface-container-lowest);
+            border-right: 1px solid var(--m3-outline-variant);
+            overflow: hidden;
+            white-space: pre;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            width: 100%;
+            resize: none;
+            border: none;
+            background-color: transparent;
+            color: var(--m3-on-surface);
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            outline: none;
+            white-space: pre;
+            overflow: auto;
+        }
+        
+        .editor-textarea:focus {
+            outline: none;
+        }
+
+        /* Viewer Specific - Markdown Typography */
+        .viewer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            color: var(--m3-on-surface);
+            line-height: 1.6;
+        }
+
+        .markdown-body h1, 
+        .markdown-body h2, 
+        .markdown-body h3, 
+        .markdown-body h4, 
+        .markdown-body h5, 
+        .markdown-body h6 {
+            color: var(--m3-on-surface);
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            line-height: 1.25;
+        }
+        .markdown-body h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid var(--m3-surface-variant); }
+        .markdown-body h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--m3-surface-variant); }
+        .markdown-body h3 { font-size: 1.25em; }
+        
+        .markdown-body p, 
+        .markdown-body blockquote, 
+        .markdown-body ul, 
+        .markdown-body ol, 
+        .markdown-body dl, 
+        .markdown-body table, 
+        .markdown-body pre, 
+        .markdown-body details {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body a {
+            color: var(--m3-primary);
+            text-decoration: none;
+        }
+        .markdown-body a:hover { text-decoration: underline; }
+        
+        .markdown-body strong { font-weight: 700; }
+        
+        .markdown-body ul, .markdown-body ol { padding-left: 2em; }
+        .markdown-body ul { list-style-type: disc; }
+        .markdown-body ol { list-style-type: decimal; }
+        
+        .markdown-body blockquote {
+            padding: 0 1em;
+            color: var(--m3-on-surface-variant);
+            border-left: 0.25em solid var(--m3-surface-variant);
+        }
+        
+        .markdown-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 85%;
+            background-color: var(--m3-surface-container-high);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+        }
+        
+        .markdown-body pre {
+            background-color: var(--m3-surface-container-highest);
+            border-radius: 8px;
+            padding: 16px;
+            overflow: auto;
+            border: 1px solid var(--m3-surface-variant);
+        }
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 14px;
+        }
+        
+        .markdown-body table {
+            border-spacing: 0;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .markdown-body table th,
+        .markdown-body table td {
+            padding: 6px 13px;
+            border: 1px solid var(--m3-surface-variant);
+        }
+        .markdown-body table tr {
+            background-color: var(--m3-surface-container-low);
+        }
+        .markdown-body table tr:nth-child(2n) {
+            background-color: var(--m3-surface-container);
+        }
+        
+        .markdown-body hr {
+            height: 1px;
+            padding: 0;
+            margin: 16px 0;
+            background-color: var(--m3-surface-variant);
+            border: 0;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            box-sizing: content-box;
+            background-color: var(--m3-background);
+            border-radius: 8px;
+        }
+
+        /* KaTeX Theme Contrast Fix
+           KaTeX's default CSS hardcodes black for rule/border colors on things
+           like \sqrt, \frac and \overline, which becomes invisible on dark
+           surfaces. Using currentColor instead makes math correctly adapt to
+           whichever of the three themes (blue/black/white) is active. */
+        .markdown-body .katex { color: var(--m3-on-surface); font-size: 1.05em; }
+        .markdown-body .katex .frac-line,
+        .markdown-body .katex .sqrt > .sqrt-sign,
+        .markdown-body .katex .rule,
+        .markdown-body .katex .overline .overline-line,
+        .markdown-body .katex .underline .underline-line {
+            border-color: currentColor;
+            background: currentColor;
+        }
+        .markdown-body .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 4px 0 12px;
+        }
+
+        /* Editor Footer - save status + word/char count */
+        .editor-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 6px 16px;
+            font-size: 12px;
+            color: var(--m3-on-surface-variant);
+            border-top: 1px solid var(--m3-outline-variant);
+            background-color: var(--m3-surface-container);
+        }
+
+        .editor-footer .word-char-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .save-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.85;
+            transition: opacity 0.2s;
+        }
+        .save-status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--m3-on-surface-variant);
+            transition: background-color 0.2s;
+        }
+        .save-status.pending::before {
+            background-color: #e8b339; /* amber = unsaved changes pending */
+        }
+        .save-status.saved::before {
+            background-color: #6bcf8e; /* green = saved */
+        }
+        .save-status.error::before {
+            background-color: #ff6b6b; /* red = save failed */
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--m3-on-surface);
+            color: var(--m3-surface);
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--m3-elevation-2);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-app-bar">
+        <div class="flex items-center flex-1 gap-6">
+            <div class="flex items-center gap-4">
+                <span class="material-symbols-rounded text-[28px] app-icon-color">edit_document</span>
+                <h1 class="text-xl font-medium tracking-wide">MarkDown Editor & Viewer</h1>
+            </div>
+
+            <div class="flex toggle-pill rounded-full p-1 gap-1">
+                <button id="btn-toggle-editor" class="icon-btn active" title="Toggle Editor" aria-label="Toggle Editor">
+                    <span class="material-symbols-rounded">code</span>
+                </button>
+                <button id="btn-toggle-viewer" class="icon-btn active" title="Toggle Preview" aria-label="Toggle Preview">
+                    <span class="material-symbols-rounded">preview</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button id="btn-download-md" class="filled-btn" title="Download Markdown">
+                <span class="material-symbols-rounded text-[18px]">markdown</span>
+                MD
+            </button>
+            <button id="btn-download-html" class="filled-btn" title="Download HTML">
+                <span class="material-symbols-rounded text-[18px]">html</span>
+                HTML
+            </button>
+        </div>
+
+        <button id="btn-theme-toggle" class="icon-btn theme-toggle-btn" title="Switch theme" aria-label="Switch theme">
+            <span class="material-symbols-rounded" id="theme-toggle-icon">dark_mode</span>
+        </button>
+    </header>
+
+    <main class="main-container">
+        <!-- Editor Panel -->
+        <div id="editor-panel" class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Editor</span>
+                <button id="btn-copy-md" class="icon-btn w-[32px] h-[32px]" title="Copy Markdown">
+                    <span class="material-symbols-rounded text-[18px]">content_copy</span>
+                </button>
+            </div>
+            <div class="editor-body">
+                <div id="editor-gutter" class="editor-gutter">1</div>
+                <textarea id="markdown-input" class="editor-textarea" placeholder="Start typing your markdown here..." spellcheck="false"></textarea>
+            </div>
+            <div class="editor-footer">
+                <span id="save-status" class="save-status">Saved</span>
+                <div class="word-char-group">
+                    <span id="word-count">0 words</span>
+                    <span id="char-count">0 characters</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Viewer Panel -->
+        <div id="viewer-panel" class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Preview</span>
+                <button id="btn-copy-html" class="icon-btn w-[32px] h-[32px]" title="Copy HTML">
+                    <span class="material-symbols-rounded text-[18px]">html</span>
+                </button>
+            </div>
+            <div class="viewer-content">
+                <div id="markdown-output" class="markdown-body"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Element -->
+    <div id="toast" class="toast">
+        <span class="material-symbols-rounded" id="toast-icon">info</span>
+        <span id="toast-message">Message</span>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elements
+            const editorPanel = document.getElementById('editor-panel');
+            const viewerPanel = document.getElementById('viewer-panel');
+            const mdInput = document.getElementById('markdown-input');
+            const editorGutter = document.getElementById('editor-gutter');
+            const htmlOutput = document.getElementById('markdown-output');
+            
+            const btnToggleEditor = document.getElementById('btn-toggle-editor');
+            const btnToggleViewer = document.getElementById('btn-toggle-viewer');
+            const btnDownloadMd = document.getElementById('btn-download-md');
+            const btnDownloadHtml = document.getElementById('btn-download-html');
+            const btnThemeToggle = document.getElementById('btn-theme-toggle');
+            const themeToggleIcon = document.getElementById('theme-toggle-icon');
+            const hljsThemeDark = document.getElementById('hljs-theme-dark');
+            const hljsThemeLight = document.getElementById('hljs-theme-light');
+            const btnCopyMd = document.getElementById('btn-copy-md');
+            const btnCopyHtml = document.getElementById('btn-copy-html');
+            
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            const wordCountEl = document.getElementById('word-count');
+            const charCountEl = document.getElementById('char-count');
+            const saveStatusEl = document.getElementById('save-status');
+
+            const STORAGE_KEY = 'm3-markdown-draft';
+            const THEME_STORAGE_KEY = 'm3-markdown-theme';
+            const THEMES = ['blue', 'black', 'white'];
+            const THEME_ICONS = { blue: 'dark_mode', black: 'bedtime', white: 'light_mode' };
+
+            // Default Markdown Content
+            const defaultMarkdown = `# Welcome to M3 MarkDown
+A minimal, Material Design 3 themed Markdown editor.
+
+## Features
+*   **Side-by-side editing:** Real-time preview.
+*   **Security:** XSS protection via \`DOMPurify\`.
+*   **Syntax Highlighting:** Integrated \`highlight.js\`.
+*   **Collapsible Panes:** Focus on what matters.
+*   **LaTeX Support:** Write math formulas easily.
+
+### LaTeX Example
+The famous equation $E = mc^2$ is an inline math formula.
+
+Here is a block formula:
+$$
+\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+$$
+
+### Code Example
+\`\`\`javascript
+function greet(name) {
+    console.log(\`Hello, \${name}!\`);
+}
+greet('World');
+\`\`\`
+
+### Typography
+You can use **bold**, *italic*, or ~~strikethrough~~ text.
+> Blockquotes look great in Material Design.
+
+1. Ordered list item one.
+2. Ordered list item two.
+
+| Table | Header |
+| ----- | ------ |
+| Cell 1 | Cell 2 |
+`;
+
+            // State
+            let isEditorVisible = true;
+            let isViewerVisible = true;
+            let toastTimeout;
+            let saveTimeout;
+
+            // Initialize Setup
+            // Note: marked v5+ removed the `highlight` option, so code blocks are
+            // highlighted manually via hljs.highlightElement() after render (see
+            // updatePreview). `langPrefix` still tells marked to tag code blocks
+            // with the classes hljs expects.
+            marked.setOptions({
+                langPrefix: 'hljs language-',
+                breaks: true,
+                gfm: true
+            });
+
+            // Restore saved theme preference, defaulting to the blue theme.
+            let savedTheme = 'blue';
+            try {
+                const stored = localStorage.getItem(THEME_STORAGE_KEY);
+                if (stored && THEMES.includes(stored)) savedTheme = stored;
+            } catch (e) {
+                console.warn('Could not read saved theme preference:', e);
+            }
+            applyTheme(savedTheme);
+
+            // Set initial content: restore the last auto-saved draft if one
+            // exists, otherwise fall back to the welcome/demo content.
+            let savedDraft = null;
+            try {
+                savedDraft = localStorage.getItem(STORAGE_KEY);
+            } catch (e) {
+                // localStorage can throw in some restricted/private-browsing contexts;
+                // auto-save will simply be disabled for this session in that case.
+                console.warn('localStorage unavailable, auto-save disabled:', e);
+            }
+            mdInput.value = (savedDraft !== null && savedDraft !== '') ? savedDraft : defaultMarkdown;
+            updatePreview();
+            updateCounts();
+            updateLineNumbers();
+
+            // Event Listeners
+            mdInput.addEventListener('input', () => {
+                updatePreview();
+                updateCounts();
+                updateLineNumbers();
+                scheduleAutoSave();
+            });
+            
+            // Sync scrolling (Optional, basic implementation)
+            let isSyncingLeft = false;
+            let isSyncingRight = false;
+            
+            mdInput.addEventListener('scroll', (e) => {
+                editorGutter.scrollTop = mdInput.scrollTop;
+                if (!isSyncingLeft && isViewerVisible) {
+                    isSyncingRight = true;
+                    const percentage = mdInput.scrollTop / (mdInput.scrollHeight - mdInput.clientHeight);
+                    const viewerContainer = htmlOutput.parentElement;
+                    viewerContainer.scrollTop = percentage * (viewerContainer.scrollHeight - viewerContainer.clientHeight);
+                }
+                isSyncingLeft = false;
+            });
+
+            const viewerContainer = htmlOutput.parentElement;
+            viewerContainer.addEventListener('scroll', (e) => {
+                if (!isSyncingRight && isEditorVisible) {
+                    isSyncingLeft = true;
+                    const percentage = viewerContainer.scrollTop / (viewerContainer.scrollHeight - viewerContainer.clientHeight);
+                    mdInput.scrollTop = percentage * (mdInput.scrollHeight - mdInput.clientHeight);
+                }
+                isSyncingRight = false;
+            });
+
+            // UI Toggle Logic
+            btnToggleEditor.addEventListener('click', () => {
+                if (isEditorVisible && !isViewerVisible) {
+                    showToast("Cannot collapse both panels.", "warning");
+                    return;
+                }
+                isEditorVisible = !isEditorVisible;
+                togglePanel(editorPanel, btnToggleEditor, isEditorVisible);
+            });
+
+            btnToggleViewer.addEventListener('click', () => {
+                if (!isEditorVisible && isViewerVisible) {
+                    showToast("Cannot collapse both panels.", "warning");
+                    return;
+                }
+                isViewerVisible = !isViewerVisible;
+                togglePanel(viewerPanel, btnToggleViewer, isViewerVisible);
+            });
+
+            window.addEventListener('beforeunload', () => {
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                    saveDraftNow();
+                }
+            });
+
+            // Actions
+            btnDownloadMd.addEventListener('click', downloadMarkdown);
+            btnDownloadHtml.addEventListener('click', downloadHtmlFile);
+            btnThemeToggle.addEventListener('click', cycleTheme);
+            
+            btnCopyMd.addEventListener('click', () => {
+                copyToClipboard(mdInput.value, 'Markdown copied to clipboard');
+            });
+            
+            btnCopyHtml.addEventListener('click', () => {
+                copyToClipboard(htmlOutput.innerHTML, 'HTML copied to clipboard');
+            });
+
+            // Functions
+            function updatePreview() {
+                let markdownText = mdInput.value;
+
+                // Pre-process LaTeX to protect it from marked.js parsing and DOMPurify.
+                // NOTE: placeholders must NOT contain markdown-special characters like
+                // underscores or asterisks, otherwise marked.js will mangle them (e.g.
+                // __MATH_BLOCK_0__ gets parsed as bold text) before we can restore them.
+                // We use an alphanumeric token + a unique run id so nothing collides
+                // with user-typed text either.
+                let mathBlocks = [];
+                const runId = Math.random().toString(36).slice(2, 8);
+                const blockToken = (i) => `MATHBLOCKPLACEHOLDER${runId}${i}ENDPLACEHOLDER`;
+                const inlineToken = (i) => `MATHINLINEPLACEHOLDER${runId}${i}ENDPLACEHOLDER`;
+
+                // Block Math: $$...$$ or \[...\]
+                // Placed on its own blank-line-separated paragraph so marked.js emits
+                // it as a plain <p>token</p> we can safely find-and-replace later.
+                markdownText = markdownText.replace(/\$\$([\s\S]*?)\$\$/g, (match, p1) => {
+                    mathBlocks.push({ tex: p1, display: true });
+                    return `\n\n${blockToken(mathBlocks.length - 1)}\n\n`;
+                });
+                markdownText = markdownText.replace(/\\\[([\s\S]*?)\\\]/g, (match, p1) => {
+                    mathBlocks.push({ tex: p1, display: true });
+                    return `\n\n${blockToken(mathBlocks.length - 1)}\n\n`;
+                });
+
+                // Inline Math: $...$ or \(...\)
+                markdownText = markdownText.replace(/\$([^$\n]+?)\$/g, (match, p1) => {
+                    mathBlocks.push({ tex: p1, display: false });
+                    return inlineToken(mathBlocks.length - 1);
+                });
+                markdownText = markdownText.replace(/\\\((.*?)\\\)/g, (match, p1) => {
+                    mathBlocks.push({ tex: p1, display: false });
+                    return inlineToken(mathBlocks.length - 1);
+                });
+
+                try {
+                    let rawHtml = marked.parse(markdownText);
+
+                    // Sanitize the HTML first to prevent XSS.
+                    // We render math AFTER sanitizing so DOMPurify doesn't break KaTeX's specific markup.
+                    let cleanHtml = DOMPurify.sanitize(rawHtml);
+
+                    // Post-process to render LaTeX using KaTeX
+                    mathBlocks.forEach((math, i) => {
+                        let renderedMath = "";
+                        if (window.katex) {
+                            try {
+                                renderedMath = katex.renderToString(math.tex, {
+                                    displayMode: math.display,
+                                    throwOnError: false
+                                });
+                            } catch (e) {
+                                // Fallback to raw text if KaTeX fails on a specific formula
+                                renderedMath = `<span style="color: #ff6b6b;" title="${(e.message || '').replace(/"/g, '&quot;')}">${math.display ? '$$' : '$'}${math.tex}${math.display ? '$$' : '$'}</span>`;
+                            }
+                        } else {
+                            // Fallback if KaTeX library failed to load
+                            renderedMath = math.display ? `$$${math.tex}$$` : `$${math.tex}$`;
+                        }
+
+                        const token = math.display ? blockToken(i) : inlineToken(i);
+                        // Block math tokens get wrapped in <p> by marked; replace the whole
+                        // paragraph so we don't end up with an empty <p></p> around the KaTeX div.
+                        cleanHtml = cleanHtml.replace(`<p>${token}</p>`, renderedMath);
+                        cleanHtml = cleanHtml.replace(token, renderedMath);
+                    });
+
+                    htmlOutput.innerHTML = cleanHtml;
+
+                    // Re-highlight code blocks (marked's built-in `highlight` option was
+                    // removed in marked v5+, so we run highlight.js manually as a fallback).
+                    if (window.hljs) {
+                        htmlOutput.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error parsing markdown:", error);
+                    htmlOutput.innerHTML = "<p style='color: #ff6b6b;'>Error parsing markdown.</p>";
+                }
+            }
+
+            function updateCounts() {
+                const text = mdInput.value;
+                const trimmed = text.trim();
+                const words = trimmed.length ? trimmed.split(/\s+/).length : 0;
+                wordCountEl.textContent = `${words} word${words === 1 ? '' : 's'}`;
+                charCountEl.textContent = `${text.length} character${text.length === 1 ? '' : 's'}`;
+            }
+
+            // Auto-save: debounced rather than a blind fixed-interval timer, so we
+            // avoid writing to localStorage on every keystroke, but still persist
+            // shortly after the user pauses (rather than only every N seconds
+            // regardless of activity). 800ms feels instant without being wasteful.
+            function scheduleAutoSave() {
+                setSaveStatus('pending');
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveDraftNow, 800);
+            }
+
+            function saveDraftNow() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, mdInput.value);
+                    setSaveStatus('saved');
+                } catch (e) {
+                    console.warn('Auto-save failed:', e);
+                    setSaveStatus('error');
+                }
+            }
+
+            function setSaveStatus(state) {
+                saveStatusEl.classList.remove('pending', 'saved', 'error');
+                if (state === 'pending') {
+                    saveStatusEl.classList.add('pending');
+                    saveStatusEl.textContent = 'Saving…';
+                } else if (state === 'error') {
+                    saveStatusEl.classList.add('error');
+                    saveStatusEl.textContent = 'Save failed';
+                } else {
+                    saveStatusEl.classList.add('saved');
+                    saveStatusEl.textContent = 'Saved';
+                }
+            }
+
+            function applyTheme(themeName) {
+                document.documentElement.setAttribute('data-theme', themeName);
+                themeToggleIcon.textContent = THEME_ICONS[themeName] || 'dark_mode';
+
+                // White theme needs the light hljs color scheme for readable code
+                // blocks; blue/black (both dark surfaces) use the dark scheme.
+                const useLight = themeName === 'white';
+                hljsThemeLight.disabled = !useLight;
+                hljsThemeDark.disabled = useLight;
+
+                try {
+                    localStorage.setItem(THEME_STORAGE_KEY, themeName);
+                } catch (e) {
+                    console.warn('Could not persist theme choice:', e);
+                }
+            }
+
+            function cycleTheme() {
+                const current = document.documentElement.getAttribute('data-theme') || 'blue';
+                const currentIndex = THEMES.indexOf(current);
+                const next = THEMES[(currentIndex + 1) % THEMES.length];
+                applyTheme(next);
+            }
+
+            function updateLineNumbers() {
+                const lineCount = mdInput.value.split('\n').length;
+                let gutterHtml = '';
+                for (let i = 1; i <= lineCount; i++) {
+                    gutterHtml += i + '\n';
+                }
+                // Trim the trailing newline so there's no extra blank row at the bottom
+                editorGutter.textContent = gutterHtml.slice(0, -1);
+                editorGutter.scrollTop = mdInput.scrollTop;
+            }
+
+            function togglePanel(panelElement, buttonElement, isVisible) {
+                if (isVisible) {
+                    panelElement.classList.remove('collapsed');
+                    buttonElement.classList.add('active');
+                } else {
+                    panelElement.classList.add('collapsed');
+                    buttonElement.classList.remove('active');
+                }
+            }
+
+            function downloadMarkdown() {
+                const text = mdInput.value;
+                if (!text.trim()) {
+                    showToast("Nothing to download.", "info");
+                    return;
+                }
+                
+                const blob = new Blob([text], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'document.md';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("File downloaded successfully", "download_done");
+            }
+
+            function downloadHtmlFile() {
+                const content = htmlOutput.innerHTML;
+                if (!content.trim()) {
+                    showToast("Nothing to download.", "info");
+                    return;
+                }
+                
+                // Create a standalone HTML file with styling and MathJax
+                const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exported Markdown</title>
+    <style>
+        body { font-family: 'Roboto', system-ui, sans-serif; background-color: #000000; color: #d4dbeb; line-height: 1.6; padding: 2rem; max-width: 900px; margin: 0 auto; }
+        h1, h2, h3, h4, h5 { color: #d4dbeb; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 500; }
+        h1 { border-bottom: 1px solid #141a28; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #141a28; padding-bottom: 0.3em; }
+        a { color: #7fa8e8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { background-color: #0f1524; padding: 0.2em 0.4em; border-radius: 6px; font-family: monospace; font-size: 14px; }
+        pre { background-color: #141b2c; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid #141a28; }
+        pre code { background-color: transparent; padding: 0; }
+        blockquote { border-left: 4px solid #141a28; margin: 0 0 1rem 0; padding-left: 1em; color: #b3bcd3; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+        th, td { border: 1px solid #141a28; padding: 8px; }
+        tr:nth-child(even) { background-color: #070b14; }
+        img { max-width: 100%; border-radius: 8px; }
+    </style>
+    <!-- Include KaTeX CSS to ensure exported math renders beautifully -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+</head>
+<body>
+${content}
+</body>
+</html>`;
+                
+                const blob = new Blob([fullHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'document.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("HTML downloaded successfully", "download_done");
+            }
+
+            function copyToClipboard(text, successMessage) {
+                if (!text) return;
+                
+                // Fallback for iframe environments
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                // Avoid scrolling to bottom
+                textArea.style.top = "0";
+                textArea.style.left = "0";
+                textArea.style.position = "fixed";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showToast(successMessage, "content_copy");
+                    } else {
+                        showToast("Failed to copy", "error");
+                    }
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                    showToast("Failed to copy", "error");
+                }
+
+                document.body.removeChild(textArea);
+            }
+
+            function showToast(message, iconName = "info") {
+                clearTimeout(toastTimeout);
+                toastMessage.textContent = message;
+                toastIcon.textContent = iconName;
+                toast.classList.add('show');
+                
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>
